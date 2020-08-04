@@ -55,10 +55,7 @@ type dnsConfig struct {
 
 // return the address part of the DNS listen address, without ":53" on the end
 func (c dnsConfig) addressOnly() string {
-	addr, _, err := net.SplitHostPort(c.ListenAddress)
-	if err != nil {
-		Log.Fatalf("Error when parsing DNS listen address %q: %s", c.ListenAddress, err)
-	}
+	addr, _, _ := net.SplitHostPort(c.ListenAddress)
 	return addr
 }
 
@@ -307,9 +304,17 @@ func main() {
 
 	bridgeConfig.Mac = name.String()
 	bridgeConfig.Port = config.Port
+	if httpAddr != "" {
+		if _, port, err := net.SplitHostPort(httpAddr); err == nil {
+			bridgeConfig.ControlPort = port
+		}
+	}
 	ips := ipset.New(common.LogLogger(), 0)
+	err = weavenet.ResetIPTables(&bridgeConfig, ips)
+	checkFatal(err)
 	bridgeType, err := weavenet.EnsureBridge(procPath, &bridgeConfig, Log, ips)
 	checkFatal(err)
+
 	Log.Println("Bridge type is", bridgeType)
 
 	config.Password = determinePassword(password)
@@ -453,6 +458,7 @@ func main() {
 
 	pluginConfig.DNS = !noDNS
 	pluginConfig.DefaultSubnet = defaultSubnet.String()
+	pluginConfig.ProcPath = procPath
 	plugin := plugin.NewPlugin(pluginConfig)
 
 	// The weave script always waits for a status call to succeed,
@@ -465,6 +471,7 @@ func main() {
 		}
 		if ns != nil {
 			ns.HandleHTTP(muxRouter, dockerCli)
+			dnsserver.HandleHTTP(muxRouter)
 		}
 		router.HandleHTTP(muxRouter)
 		HandleHTTP(muxRouter, version, router, allocator, defaultSubnet, ns, dnsserver, proxy, plugin, &waitReady)
@@ -505,6 +512,18 @@ func main() {
 		// because awsvpc has installed it as well
 		go exposeForAWSVPC(allocator, defaultSubnet, bridgeConfig.WeaveBridgeName, waitReady.Add())
 	}
+
+	applyIPTables := func() {
+		Log.Info("Re-configuring iptables")
+		err := weavenet.ConfigureIPTables(&bridgeConfig, ips)
+		if err != nil {
+			Log.Errorf("Error configuring iptables: %s", err)
+		}
+		weavenet.Reexpose(&bridgeConfig, Log)
+	}
+	stopChan := make(chan struct{})
+	go weavenet.MonitorForIptablesFlush(Log, "WEAVE-CANARY", []string{"mangle", "nat", "filter"}, applyIPTables, 10*time.Second, stopChan)
+	defer close(stopChan)
 
 	signals.SignalHandlerLoop(common.Log, router)
 }

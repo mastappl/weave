@@ -1,3 +1,52 @@
+## Release 2.6.5
+
+Fixes a bug that would leak memory every time a fast-datapath connection
+was stopped. #3808
+Also avoid a crash when the machine has ipv6 disabled. #3815
+
+
+## Release 2.6.4
+
+Improves the iptables rule added in 2.6.3 to block just the Weave Net
+control port and avoid blocking other uses of 127.0.0.1.	#3811
+
+
+## Release 2.6.3
+
+This release has a couple of security improvements, and some other fixes.
+
+* Block non-local traffic to the Weave control port	#3805
+* Tell Linux not to accept router advisory messages	#3801
+* Network Policy Controller: add a metric to show errors while operating	#3804
+* Network Policy Controller: don't treat named port as a fatal error	#3790
+
+## Release 2.6.2
+
+This release fixes a regression found in 2.6.1 release and removes a possible case
+of CPU spinning when pcap is used in sleeve mode
+
+### Bug fixes
+
+* Weave Net can not be used in fastdp mode and always falls back to sleeve mode #3781, #3783
+* Restrict timeout value passed to pcap library to a value less than 2^31 microseconds to
+  prevent CPU spinning #3782
+
+## Release 2.6.1
+
+This release fixes a bug discovered since the release of Weave Net 2.6.0 and
+an improvement to support iptables 1.8
+
+### Bug fixes
+
+* Weave Net on node restart unable to form connections to peers and connections get stuck in
+  pending state and stops responding to API endpoint #3762 #3763
+
+### Other improvements
+
+* Weave Net Kubernetes images by default uses iptables 1.8 with legacy (netfilter) backend with
+  option to choose netfilter as backend #3465, #3747
+
+
 ## Release 2.6.0
 
 This release reduces CPU and memory usage in larger clusters, by
