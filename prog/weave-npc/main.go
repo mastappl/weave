@@ -210,17 +210,14 @@ func createBaseRules(ipt *iptables.IPTables, ips ipset.Interface) error {
 	return nil
 }
 
-func stopOnPanicRecover(stopChan chan struct{}) {
+func stopOnPanicRecover() {
 	if r := recover(); r != nil {
 		os.Exit(1)
 	}
 }
 
 func root(cmd *cobra.Command, args []string) {
-	var (
-		npController cache.Controller
-		stopChan     chan struct{}
-	)
+	var npController cache.Controller
 
 	common.SetLogLevel(logLevel)
 	if nodeName == "" {
@@ -260,11 +257,11 @@ func root(cmd *cobra.Command, args []string) {
 	nsController := makeController(client.CoreV1().RESTClient(), "namespaces", &coreapi.Namespace{},
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				defer stopOnPanicRecover(stopChan)
+				defer stopOnPanicRecover()
 				handleError(npc.AddNamespace(obj.(*coreapi.Namespace)))
 			},
 			DeleteFunc: func(obj interface{}) {
-				defer stopOnPanicRecover(stopChan)
+				defer stopOnPanicRecover()
 				switch obj := obj.(type) {
 				case *coreapi.Namespace:
 					handleError(npc.DeleteNamespace(obj))
@@ -276,18 +273,18 @@ func root(cmd *cobra.Command, args []string) {
 				}
 			},
 			UpdateFunc: func(old, new interface{}) {
-				defer stopOnPanicRecover(stopChan)
+				defer stopOnPanicRecover()
 				handleError(npc.UpdateNamespace(old.(*coreapi.Namespace), new.(*coreapi.Namespace)))
 			}})
 
 	podController := makeController(client.CoreV1().RESTClient(), "pods", &coreapi.Pod{},
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				defer stopOnPanicRecover(stopChan)
+				defer stopOnPanicRecover()
 				handleError(npc.AddPod(obj.(*coreapi.Pod)))
 			},
 			DeleteFunc: func(obj interface{}) {
-				defer stopOnPanicRecover(stopChan)
+				defer stopOnPanicRecover()
 				switch obj := obj.(type) {
 				case *coreapi.Pod:
 					handleError(npc.DeletePod(obj))
@@ -299,17 +296,17 @@ func root(cmd *cobra.Command, args []string) {
 				}
 			},
 			UpdateFunc: func(old, new interface{}) {
-				defer stopOnPanicRecover(stopChan)
+				defer stopOnPanicRecover()
 				handleError(npc.UpdatePod(old.(*coreapi.Pod), new.(*coreapi.Pod)))
 			}})
 
 	npHandlers := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			defer stopOnPanicRecover(stopChan)
+			defer stopOnPanicRecover()
 			handleError(npc.AddNetworkPolicy(obj))
 		},
 		DeleteFunc: func(obj interface{}) {
-			defer stopOnPanicRecover(stopChan)
+			defer stopOnPanicRecover()
 			switch obj := obj.(type) {
 			case cache.DeletedFinalStateUnknown:
 				// We know this object has gone away, but its final state is no longer
@@ -321,7 +318,7 @@ func root(cmd *cobra.Command, args []string) {
 			}
 		},
 		UpdateFunc: func(old, new interface{}) {
-			defer stopOnPanicRecover(stopChan)
+			defer stopOnPanicRecover()
 			handleError(npc.UpdateNetworkPolicy(old, new))
 		},
 	}
