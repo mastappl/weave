@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
+	goruntime "runtime"
 	"syscall"
 
 	"github.com/coreos/go-iptables/iptables"
@@ -212,7 +214,9 @@ func createBaseRules(ipt *iptables.IPTables, ips ipset.Interface) error {
 
 func stopOnPanicRecover() {
 	if r := recover(); r != nil {
-		os.Exit(1)
+		buf := make([]byte, 1<<20)
+		stacklen := goruntime.Stack(buf, false)
+		handleFatal(fmt.Errorf("panic: %v \n%s", r, buf[:stacklen]))
 	}
 }
 
